@@ -14,7 +14,7 @@ use crate::{
     moderation::Moderations,
     traits::AsyncTryFrom,
     Assistants, Audio, AuditLogs, Batches, Chat, Completions, Embeddings, FineTuning, Invites,
-    Models, Projects, Responses, Threads, Uploads, Users, VectorStores,
+    Models, Projects, Responses, Threads, Uploads, Users, VectorStores, Videos,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -105,6 +105,11 @@ impl<C: Config> Client<C> {
     /// To call [Uploads] group related APIs using this client.
     pub fn uploads(&self) -> Uploads<C> {
         Uploads::new(self)
+    }
+
+    /// To call [Videos] group related APIs using this client.
+    pub fn videos(&self) -> Videos<'_, C> {
+        Videos::new(self)
     }
 
     /// To call [FineTuning] group related APIs using this client.
@@ -231,6 +236,28 @@ impl<C: Config> Client<C> {
                 .http_client
                 .get(self.config.url(path))
                 .query(&self.config.query())
+                .headers(self.config.headers())
+                .build()?)
+        };
+
+        self.execute_raw(request_maker).await
+    }
+
+    /// Make a GET request to {path} with given Query and return the response body
+    pub(crate) async fn get_raw_with_query<Q>(
+        &self,
+        path: &str,
+        query: &Q,
+    ) -> Result<Bytes, OpenAIError>
+    where
+        Q: Serialize + ?Sized,
+    {
+        let request_maker = || async {
+            Ok(self
+                .http_client
+                .get(self.config.url(path))
+                .query(&self.config.query())
+                .query(query)
                 .headers(self.config.headers())
                 .build()?)
         };

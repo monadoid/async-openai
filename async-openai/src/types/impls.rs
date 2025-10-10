@@ -26,10 +26,10 @@ use super::{
     ChatCompletionRequestUserMessage, ChatCompletionRequestUserMessageContent,
     ChatCompletionRequestUserMessageContentPart, ChatCompletionToolChoiceOption, CreateFileRequest,
     CreateImageEditRequest, CreateImageVariationRequest, CreateMessageRequestContent,
-    CreateSpeechResponse, CreateTranscriptionRequest, CreateTranslationRequest, DallE2ImageSize,
-    EmbeddingInput, FileInput, FilePurpose, FunctionName, Image, ImageInput, ImageModel,
-    ImageResponseFormat, ImageSize, ImageUrl, ImagesResponse, ModerationInput, Prompt, Role, Stop,
-    TimestampGranularity,
+    CreateSpeechResponse, CreateTranscriptionRequest, CreateTranslationRequest, CreateVideoRequest,
+    DallE2ImageSize, EmbeddingInput, FileInput, FilePurpose, FunctionName, Image, ImageInput,
+    ImageModel, ImageResponseFormat, ImageSize, ImageUrl, ImagesResponse, ModerationInput, Prompt,
+    Role, Stop, TimestampGranularity, VideoInput,
 };
 
 /// for `impl_from!(T, Enum)`, implements
@@ -160,6 +160,7 @@ macro_rules! impl_input {
 impl_input!(AudioInput);
 impl_input!(FileInput);
 impl_input!(ImageInput);
+impl_input!(VideoInput);
 
 impl Display for ImageSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -973,6 +974,33 @@ impl AsyncTryFrom<CreateFileRequest> for reqwest::multipart::Form {
         let form = reqwest::multipart::Form::new()
             .part("file", file_part)
             .text("purpose", request.purpose.to_string());
+        Ok(form)
+    }
+}
+
+impl AsyncTryFrom<CreateVideoRequest> for reqwest::multipart::Form {
+    type Error = OpenAIError;
+
+    async fn try_from(request: CreateVideoRequest) -> Result<Self, Self::Error> {
+        let mut form = reqwest::multipart::Form::new().text("prompt", request.prompt);
+
+        if let Some(input_reference) = request.input_reference {
+            let part = create_file_part(input_reference.source).await?;
+            form = form.part("input_reference", part);
+        }
+
+        if let Some(model) = request.model {
+            form = form.text("model", model.to_string());
+        }
+
+        if let Some(seconds) = request.seconds {
+            form = form.text("seconds", seconds.to_string());
+        }
+
+        if let Some(size) = request.size {
+            form = form.text("size", size.to_string());
+        }
+
         Ok(form)
     }
 }
